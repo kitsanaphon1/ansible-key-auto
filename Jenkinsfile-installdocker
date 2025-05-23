@@ -105,7 +105,7 @@ source ${VENV_PATH}/bin/activate
 cd ${WORKDIR}/playbooks
 ansible-playbook install-docker.yaml -i "\$VM_IP," \\
   -e 'ansible_user=azureuser' \\
-  -e 'ansible_ssh_private_key_file=~/.ssh/id_rsa_ansible_final'
+  -e 'ansible_ssh_private_key_file=/home/boho/ansible-keys/id_rsa_ansible_final'
 EOF
 """
         }
