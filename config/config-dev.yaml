@@ -9,4 +9,5 @@ vm_name: jenkins-dev-vm
 vm_size: Standard_B1s
 
 admin_username: azureuser
-ssh_key_path: ../keys/id_rsa_ansible_final.pub
+ssh_key_path: /home/boho/ansible-keys/id_rsa_ansible_final.pub
+
