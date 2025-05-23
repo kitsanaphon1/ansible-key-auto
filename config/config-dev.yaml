@@ -1,0 +1,12 @@
+resource_group: jenkins-dev-rg
+location: southeastasia
+
+vnet_name: jenkins-dev-vnet
+subnet_name: jenkins-dev-subnet
+public_ip_name: jenkins-dev-ip
+nic_name: jenkins-dev-nic
+vm_name: jenkins-dev-vm
+vm_size: Standard_B1s
+
+admin_username: azureuser
+ssh_key_path: ../keys/id_rsa_ansible_final.pub

@@ -1,0 +1,17 @@
+- name: 🌐 ดึง Public IP ของ Azure VM
+  hosts: localhost
+  connection: local
+  vars_files:
+    - ../config/config-dev.yaml
+
+  tasks:
+    - name: 🔍 ค้นหา Public IP ของ VM
+      azure.azcollection.azure_rm_publicipaddress_info:
+        resource_group: "{{ resource_group }}"
+        name: "{{ public_ip_name }}"
+      register: public_ip_info
+
+    - name: 📝 บันทึก IP ลงไฟล์
+      copy:
+        dest: ./vm_ip.txt
+        content: "{{ public_ip_info.ansible_facts.azure_publicipaddresses[0].ip_address }}"

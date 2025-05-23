@@ -1,0 +1,12 @@
+- name: 💣 ลบ Azure Linux VM และ Resource ทั้งหมด
+  hosts: localhost
+  connection: local
+  vars_files:
+    - ../config/config-dev.yaml
+
+  tasks:
+    - name: 🗑️ ลบ Resource Group (ลบทุกอย่างในนี้)
+      azure.azcollection.azure_rm_resourcegroup:
+        name: "{{ resource_group }}"
+        force_delete_nonempty: true
+        state: absent

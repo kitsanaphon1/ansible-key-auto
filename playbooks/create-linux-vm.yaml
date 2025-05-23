@@ -1,0 +1,59 @@
+- name: ☁️ สร้าง Azure Linux VM
+  hosts: localhost
+  connection: local
+  vars_files:
+    - ../config/config-dev.yaml
+  tasks:
+    - name: 📦 สร้าง Resource Group
+      azure.azcollection.azure_rm_resourcegroup:
+        name: "{{ resource_group }}"
+        location: "{{ location }}"
+
+    - name: 🌐 สร้าง Virtual Network
+      azure.azcollection.azure_rm_virtualnetwork:
+        name: "{{ vnet_name }}"
+        resource_group: "{{ resource_group }}"
+        address_prefixes: "10.0.0.0/16"
+
+    - name: 🧩 สร้าง Subnet
+      azure.azcollection.azure_rm_subnet:
+        name: "{{ subnet_name }}"
+        resource_group: "{{ resource_group }}"
+        address_prefix: "10.0.1.0/24"
+        virtual_network: "{{ vnet_name }}"
+
+    - name: 🌐 สร้าง Public IP
+      azure.azcollection.azure_rm_publicipaddress:
+        name: "{{ public_ip_name }}"
+        resource_group: "{{ resource_group }}"
+        allocation_method: Static
+
+    - name: 🔐 สร้าง Network Interface
+      azure.azcollection.azure_rm_networkinterface:
+        name: "{{ nic_name }}"
+        resource_group: "{{ resource_group }}"
+        virtual_network: "{{ vnet_name }}"
+        subnet: "{{ subnet_name }}"
+        ip_configurations:
+          - name: ipconfig1
+            public_ip_address_name: "{{ public_ip_name }}"
+
+    - name: 🖥️ สร้าง Linux VM
+      azure.azcollection.azure_rm_virtualmachine:
+        resource_group: "{{ resource_group }}"
+        name: "{{ vm_name }}"
+        vm_size: "{{ vm_size }}"
+        admin_username: "{{ admin_username }}"
+        ssh_password_enabled: false
+        ssh_public_keys:
+          - path: /home/{{ admin_username }}/.ssh/authorized_keys
+            key_data: "{{ lookup('file', ssh_key_path) }}"
+        network_interfaces: "{{ nic_name }}"
+        image:
+          publisher: Canonical
+          offer: 0001-com-ubuntu-server-focal
+          sku: 20_04-lts
+          version: latest
+        location: "{{ location }}"
+        state: present
+        auth_source: env
