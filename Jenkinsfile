@@ -78,10 +78,12 @@ git clone ${REPO_URL} ${WORKDIR}
 
 source ${VENV_PATH}/bin/activate
 cd ${WORKDIR}/playbooks
+
+# ✅ รัน playbook ที่ลบ vm_ip.txt ก่อนแล้วเขียนใหม่
 ansible-playbook get-vm-ip.yaml -e "@../config/config-dev.yaml"
 
 echo "✅ IP ที่ได้:"
-cat vm_ip.txt
+cat vm_ip.txt || echo '⚠️ ไม่พบไฟล์ vm_ip.txt'
 
 rm -rf ${WORKDIR}
 EOF

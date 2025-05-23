@@ -11,7 +11,12 @@
         name: "{{ public_ip_name }}"
       register: public_ip_info
 
+    - name: 🧹 ลบไฟล์ IP เก่าถ้ามี
+      file:
+        path: ./vm_ip.txt
+        state: absent
+
     - name: 📝 บันทึก IP ลงไฟล์
       copy:
         dest: ./vm_ip.txt
-        content: "{{ public_ip_info.ansible_facts.azure_publicipaddresses[0].ip_address }}"
+        content: "{{ public_ip_info.azure_publicipaddresses[0].ip_address }}"
