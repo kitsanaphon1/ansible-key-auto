@@ -4,7 +4,7 @@ pipeline {
   environment {
     GIT_BRANCH       = "dev" // 🛠️ ระบุชื่อ branch ของ Git (ยังไม่ได้ใช้ใน pipeline นี้ แต่สามารถนำไปใช้เพิ่มได้ภายหลัง)
     ANSIBLE_HOST     = "4.145.84.26" // 🌐 IP ของ Ansible VM ที่ Jenkins จะ SSH เข้าไปเพื่อรัน playbook
-    DESTROY_MODE     = "true" // 🔁 ถ้า true จะรัน playbook ลบ VM แทนที่จะสร้าง   false จะสรา้ง vm 
+    DESTROY_MODE     = "false" // 🔁 ถ้า true จะรัน playbook ลบ VM แทนที่จะสร้าง   false จะสรา้ง vm 
     VENV_PATH        = "/home/boho/ansible-env" // 🐍 Python Virtual Environment ที่ติดตั้ง Ansible ไว้ใน Ansible VM
     WORKDIR          = "/tmp/ansible-key-auto-run" // 📁 โฟลเดอร์ชั่วคราวบน Ansible VM ที่จะใช้ clone repo
     REPO_URL         = "https://github.com/kitsanaphon1/ansible-key-auto.git" // 🔗 Git repo ที่เก็บ playbooks และ config ทั้งหมด
