@@ -36,6 +36,7 @@ export AZURE_CLIENT_ID=$AZURE_CLIENT_ID
 export AZURE_SECRET=$AZURE_SECRET
 export AZURE_TENANT=$AZURE_TENANT
 export AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
+export ANSIBLE_HOST_KEY_CHECKING=False
 
 rm -rf ${WORKDIR}
 git clone ${REPO_URL} ${WORKDIR}
@@ -69,6 +70,7 @@ export AZURE_CLIENT_ID=$AZURE_CLIENT_ID
 export AZURE_SECRET=$AZURE_SECRET
 export AZURE_TENANT=$AZURE_TENANT
 export AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
+export ANSIBLE_HOST_KEY_CHECKING=False
 
 rm -rf ${WORKDIR}
 git clone ${REPO_URL} ${WORKDIR}
@@ -98,6 +100,7 @@ fi
 
 ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<EOF
 set -e
+export ANSIBLE_HOST_KEY_CHECKING=False
 source ${VENV_PATH}/bin/activate
 cd ${WORKDIR}/playbooks
 ansible-playbook install-docker.yaml -i "\$VM_IP," \\
