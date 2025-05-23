@@ -5,7 +5,7 @@
   vars:
     docker_users:
       - azureuser
-    docker_compose_version: "2.24.7"  # ✅ ปรับเวอร์ชันได้ตามต้องการ
+    docker_compose_version: "2.24.7"
 
   tasks:
     - name: 🧹 ล้าง Docker เดิม (ถ้ามี)
@@ -72,7 +72,7 @@
 
     - name: ⬇️ ดาวน์โหลด Docker Compose
       get_url:
-        url: "https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/docker-compose-$(uname -s)-$(uname -m)"
+        url: "https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/docker-compose-{{ ansible_system | lower }}-{{ ansible_architecture }}"
         dest: /usr/local/bin/docker-compose
         mode: '0755'
 
