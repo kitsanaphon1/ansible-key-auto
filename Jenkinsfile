@@ -1,19 +1,20 @@
 pipeline {
-  agent any
+  agent any // ✅ ใช้ Jenkins main node หรือ agent ใด ๆ ก็ได้
 
   environment {
-    GIT_BRANCH       = "dev"
-    ANSIBLE_HOST     = "4.145.84.26"
-    DESTROY_MODE     = "false"
-    VENV_PATH        = "/home/boho/ansible-env"
-    WORKDIR          = "/tmp/ansible-key-auto-run"
-    REPO_URL         = "https://github.com/kitsanaphon1/ansible-key-auto.git" // ← ✅ เปลี่ยน URL นี้ให้ตรง
+    GIT_BRANCH       = "dev"                                           // 📌 ชื่อ branch ที่จะ clone (ใช้ในอนาคตถ้ต้องการบังคับ branch)
+    ANSIBLE_HOST     = "4.145.84.26"                                   // 📍 IP ของ Ansible VM ที่ Jenkins จะ SSH เข้าไป
+    DESTROY_MODE     = "false"                                         // 🔁 กำหนดว่าเป็นโหมดลบ VM หรือสร้าง VM
+    VENV_PATH        = "/home/boho/ansible-env"                        // 🐍 Python venv ที่ติดตั้ง Ansible ไว้ใน Ansible VM
+    WORKDIR          = "/tmp/ansible-key-auto-run"                     // 📁 โฟลเดอร์ชั่วคราวที่ใช้ clone repo
+    REPO_URL         = "https://github.com/kitsanaphon1/ansible-key-auto.git" // 🔗 Git repo ที่เก็บ playbook
   }
 
   stages {
+
     stage('📥 Checkout Jenkinsfile') {
       steps {
-        checkout scm
+        checkout scm // 🔄 ดึง Jenkinsfile จาก repo (เพื่อให้รู้ pipeline ที่ต้องรัน)
       }
     }
 
@@ -38,13 +39,20 @@ pipeline {
               export AZURE_TENANT=$AZURE_TENANT
               export AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
 
+              # 💥 ล้าง repo เก่า (ถ้ามี)
               rm -rf ${WORKDIR}
+
+              # 📥 clone repo ใหม่
               git clone ${REPO_URL} ${WORKDIR}
 
+              # 🐍 เปิด virtual environment
               source ${VENV_PATH}/bin/activate
+
+              # 🛠️ รัน playbook
               cd ${WORKDIR}/playbooks
               ansible-playbook ${playbook} -e "@../config/config-dev.yaml"
 
+              # 🧹 ล้าง repo ชั่วคราวออก
               rm -rf ${WORKDIR}
               EOF
             """
@@ -55,7 +63,7 @@ pipeline {
 
     stage('🌐 ดึง IP (เฉพาะเมื่อสร้าง)') {
       when {
-        expression { return env.DESTROY_MODE.toLowerCase() == "false" }
+        expression { return env.DESTROY_MODE.toLowerCase() == "false" } // ❌ ข้ามขั้นตอนนี้ถ้าเป็นโหมดลบ
       }
       steps {
         withCredentials([

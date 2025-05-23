@@ -47,7 +47,7 @@
         ssh_password_enabled: false
         ssh_public_keys:
           - path: /home/{{ admin_username }}/.ssh/authorized_keys
-            key_data: "{{ lookup('file', ssh_key_path) }}"
+            key_data: "{{ lookup('file', '/home/boho/ansible-keys/id_rsa_ansible_final.pub') }}"
         network_interfaces: "{{ nic_name }}"
         image:
           publisher: Canonical
