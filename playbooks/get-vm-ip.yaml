@@ -11,11 +11,6 @@
         name: "{{ public_ip_name }}"
       register: public_ip_info
 
-    - name: 🐛 DEBUG: โครงสร้างผลลัพธ์ (ใช้ชั่วคราว)
-      debug:
-        var: public_ip_info
-      tags: [debug]
-
     - name: 🧹 ลบไฟล์ IP เก่าถ้ามี
       file:
         path: ./vm_ip.txt
