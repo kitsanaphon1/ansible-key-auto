@@ -1,0 +1,42 @@
+ Flow การทำงานของ Lab:
+✅ ขั้นตอนที่ 1: เตรียมเครื่อง
+สร้าง Jenkins VM และ Ansible VM
+
+ติดตั้ง Jenkins + Ansible + Azure SDK บน VM ตามลำดับ
+
+สร้าง SSH key (id_rsa_ansible_final)
+
+สร้าง Python venv: /home/boho/ansible-env และติดตั้ง module ที่จำเป็น
+
+✅ ขั้นตอนที่ 2: ทำ Jenkinsfile สำหรับ Provision
+Pipeline ดึง repo จาก GitHub
+
+SSH เข้า Ansible VM → รัน playbook create-linux-vm.yaml
+
+ใช้ Credential จาก Jenkins เพื่อ auth กับ Azure
+
+✅ ขั้นตอนที่ 3: ดึง Public IP
+Ansible รัน playbook get-vm-ip.yaml
+
+เขียน IP ลง vm_ip.txt
+
+Jenkins อ่านไฟล์ผ่าน SSH
+
+✅ ขั้นตอนที่ 4: ติดตั้ง Docker + Docker Compose
+Ansible รัน playbook install-docker.yaml โดย SSH เข้าไปที่ VM ที่เพิ่งสร้าง
+
+ติดตั้ง:
+
+Docker engine
+
+Docker Compose v2.24.7 (จาก GitHub release)
+
+ทดสอบ docker run hello-world
+
+แสดง docker-compose --version
+
+✅ สำเร็จ:
+Jenkins แสดง Finished: SUCCESS
+
+Docker + Compose ติดตั้งเสร็จ บน VM จริงที่สร้างขึ้นผ่าน Jenkins
+
