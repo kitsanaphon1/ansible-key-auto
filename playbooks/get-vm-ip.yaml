@@ -11,6 +11,11 @@
         name: "{{ public_ip_name }}"
       register: public_ip_info
 
+    - name: 🐛 DEBUG: โครงสร้างผลลัพธ์ (ใช้ชั่วคราว)
+      debug:
+        var: public_ip_info
+      tags: [debug]
+
     - name: 🧹 ลบไฟล์ IP เก่าถ้ามี
       file:
         path: ./vm_ip.txt
@@ -19,4 +24,4 @@
     - name: 📝 บันทึก IP ลงไฟล์
       copy:
         dest: ./vm_ip.txt
-        content: "{{ public_ip_info.azure_publicipaddresses[0].ip_address }}"
+        content: "{{ public_ip_info.publicipaddresses[0].ip_address }}"
