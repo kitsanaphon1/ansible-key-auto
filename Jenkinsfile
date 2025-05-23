@@ -1,28 +1,23 @@
 pipeline {
-  agent any // ✅ ไม่ใช้ Jenkins agent แยก
+  agent any
 
   environment {
     GIT_BRANCH       = "dev"
-    ANSIBLE_HOST     = "4.145.84.26"                  // IP ของ Ansible VM ที่ Jenkins จะ SSH เข้าไป
-    DESTROY_MODE     = "false"                        // true = ลบ, false = สร้าง
-    ANSIBLE_ENV_PATH = "/home/boho/ansible-env"       // venv ที่มี ansible ติดตั้งใน Ansible VM
-    PROJECT_DIR      = "/home/boho/ANSIBLE-KEY-AUTO"  // โฟลเดอร์ repo บน Ansible VM
+    ANSIBLE_HOST     = "4.145.84.26"
+    DESTROY_MODE     = "false"
+    VENV_PATH        = "/home/boho/ansible-env"
+    WORKDIR          = "/tmp/ansible-key-auto-run"
+    REPO_URL         = "https://github.com/kitsanaphon1/ansible-key-auto.git" // ← ✅ เปลี่ยน URL นี้ให้ตรง
   }
 
   stages {
-    stage('📥 Checkout Source Code') {
+    stage('📥 Checkout Jenkinsfile') {
       steps {
-        checkout scm // ดึง Jenkinsfile จาก Git
+        checkout scm
       }
     }
 
-    stage('🧹 Clean Workspace') {
-      steps {
-        cleanWs()
-      }
-    }
-
-    stage('☁️ Provision หรือ Destroy VM') {
+    stage('☁️ Provision หรือ Destroy VM (ผ่าน clone repo)') {
       steps {
         withCredentials([
           sshUserPrivateKey(credentialsId: 'ssh-ansible-agent', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER'),
@@ -35,16 +30,22 @@ pipeline {
             def playbook = (DESTROY_MODE == "true") ? "destroy-linux-vm.yaml" : "create-linux-vm.yaml"
 
             sh """
-              echo "🚀 SSH ไป Ansible VM และรัน ${playbook}"
+              echo "🚀 SSH เข้า Ansible VM และรัน playbook แบบ clone ชั่วคราว"
               ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<EOF
+              set -e
               export AZURE_CLIENT_ID=$AZURE_CLIENT_ID
               export AZURE_SECRET=$AZURE_SECRET
               export AZURE_TENANT=$AZURE_TENANT
               export AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
 
-              source ${ANSIBLE_ENV_PATH}/bin/activate
-              cd ${PROJECT_DIR}/playbooks
+              rm -rf ${WORKDIR}
+              git clone ${REPO_URL} ${WORKDIR}
+
+              source ${VENV_PATH}/bin/activate
+              cd ${WORKDIR}/playbooks
               ansible-playbook ${playbook} -e "@../config/config-dev.yaml"
+
+              rm -rf ${WORKDIR}
               EOF
             """
           }
@@ -52,7 +53,7 @@ pipeline {
       }
     }
 
-    stage('🌐 ดึง IP VM') {
+    stage('🌐 ดึง IP (เฉพาะเมื่อสร้าง)') {
       when {
         expression { return env.DESTROY_MODE.toLowerCase() == "false" }
       }
@@ -65,18 +66,25 @@ pipeline {
           string(credentialsId: 'AZURE_SUBSCRIPTION_ID', variable: 'AZURE_SUBSCRIPTION_ID')
         ]) {
           sh """
-            echo "🌐 SSH ไป Ansible VM เพื่อดึง Public IP"
+            echo "🌐 SSH ไปดึง IP หลังสร้าง VM"
             ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<EOF
+            set -e
             export AZURE_CLIENT_ID=$AZURE_CLIENT_ID
             export AZURE_SECRET=$AZURE_SECRET
             export AZURE_TENANT=$AZURE_TENANT
             export AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
 
-            source ${ANSIBLE_ENV_PATH}/bin/activate
-            cd ${PROJECT_DIR}/playbooks
+            rm -rf ${WORKDIR}
+            git clone ${REPO_URL} ${WORKDIR}
+
+            source ${VENV_PATH}/bin/activate
+            cd ${WORKDIR}/playbooks
             ansible-playbook get-vm-ip.yaml -e "@../config/config-dev.yaml"
-            echo "✅ Public IP:"
+
+            echo "✅ IP ที่ได้:"
             cat vm_ip.txt
+
+            rm -rf ${WORKDIR}
             EOF
           """
         }
