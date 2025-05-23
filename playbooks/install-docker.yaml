@@ -1,0 +1,86 @@
+---
+- name: 🐳 ติดตั้ง Docker และ Docker Compose บน VM
+  hosts: all
+  become: true
+  vars:
+    docker_users:
+      - azureuser
+    docker_compose_version: "2.24.7"  # ✅ ปรับเวอร์ชันได้ตามต้องการ
+
+  tasks:
+    - name: 🧹 ล้าง Docker เดิม (ถ้ามี)
+      apt:
+        name: "{{ item }}"
+        state: absent
+        purge: yes
+      loop:
+        - docker
+        - docker-engine
+        - docker.io
+        - containerd
+        - runc
+      ignore_errors: true
+
+    - name: 🔧 ติดตั้ง dependency พื้นฐาน
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: 🧾 เพิ่ม GPG key ของ Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: ➕ เพิ่ม Docker repo
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
+        state: present
+        filename: docker
+
+    - name: 📦 ติดตั้ง Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: latest
+        update_cache: yes
+
+    - name: 👤 เพิ่มผู้ใช้ให้สามารถใช้ Docker ได้โดยไม่ต้องใช้ sudo
+      user:
+        name: "{{ item }}"
+        groups: docker
+        append: yes
+      loop: "{{ docker_users }}"
+
+    - name: 🔁 รีสตาร์ต Docker service
+      systemd:
+        name: docker
+        state: restarted
+        enabled: yes
+
+    - name: 🧪 ทดสอบ Docker ด้วย hello-world
+      shell: docker run hello-world
+      register: docker_test
+      failed_when: "'Hello from Docker!' not in docker_test.stdout"
+      changed_when: false
+
+    - name: ⬇️ ดาวน์โหลด Docker Compose
+      get_url:
+        url: "https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/docker-compose-$(uname -s)-$(uname -m)"
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+
+    - name: ✅ ตรวจสอบ Docker Compose เวอร์ชัน
+      shell: docker-compose --version
+      register: compose_version
+      changed_when: false
+
+    - name: 📄 แสดงเวอร์ชันของ Docker Compose
+      debug:
+        msg: "{{ compose_version.stdout }}"

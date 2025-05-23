@@ -1,0 +1,112 @@
+pipeline {
+  agent any
+
+  environment {
+    GIT_BRANCH       = "dev"
+    ANSIBLE_HOST     = "4.145.84.26"
+    DESTROY_MODE     = "false"
+    VENV_PATH        = "/home/boho/ansible-env"
+    WORKDIR          = "/tmp/ansible-key-auto-run"
+    REPO_URL         = "https://github.com/kitsanaphon1/ansible-key-auto.git"
+  }
+
+  stages {
+
+    stage('📥 Checkout Jenkinsfile') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('☁️ Provision หรือ Destroy VM') {
+      steps {
+        withCredentials([
+          sshUserPrivateKey(credentialsId: 'ssh-ansible-agent', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER'),
+          string(credentialsId: 'AZURE_CLIENT_ID',       variable: 'AZURE_CLIENT_ID'),
+          string(credentialsId: 'AZURE_SECRET',          variable: 'AZURE_SECRET'),
+          string(credentialsId: 'AZURE_TENANT',          variable: 'AZURE_TENANT'),
+          string(credentialsId: 'AZURE_SUBSCRIPTION_ID', variable: 'AZURE_SUBSCRIPTION_ID')
+        ]) {
+          script {
+            def playbook = (DESTROY_MODE == "true") ? "destroy-linux-vm.yaml" : "create-linux-vm.yaml"
+            sh """
+ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<'EOF'
+set -e
+export AZURE_CLIENT_ID=$AZURE_CLIENT_ID
+export AZURE_SECRET=$AZURE_SECRET
+export AZURE_TENANT=$AZURE_TENANT
+export AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
+
+rm -rf ${WORKDIR}
+git clone ${REPO_URL} ${WORKDIR}
+source ${VENV_PATH}/bin/activate
+cd ${WORKDIR}/playbooks
+ansible-playbook ${playbook} -e "@../config/config-dev.yaml"
+rm -rf ${WORKDIR}
+EOF
+"""
+          }
+        }
+      }
+    }
+
+    stage('🌐 ดึง IP (เฉพาะเมื่อสร้าง)') {
+      when {
+        expression { return env.DESTROY_MODE.toLowerCase() == "false" }
+      }
+      steps {
+        withCredentials([
+          sshUserPrivateKey(credentialsId: 'ssh-ansible-agent', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER'),
+          string(credentialsId: 'AZURE_CLIENT_ID',       variable: 'AZURE_CLIENT_ID'),
+          string(credentialsId: 'AZURE_SECRET',          variable: 'AZURE_SECRET'),
+          string(credentialsId: 'AZURE_TENANT',          variable: 'AZURE_TENANT'),
+          string(credentialsId: 'AZURE_SUBSCRIPTION_ID', variable: 'AZURE_SUBSCRIPTION_ID')
+        ]) {
+          sh """
+ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<'EOF'
+set -e
+export AZURE_CLIENT_ID=$AZURE_CLIENT_ID
+export AZURE_SECRET=$AZURE_SECRET
+export AZURE_TENANT=$AZURE_TENANT
+export AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
+
+rm -rf ${WORKDIR}
+git clone ${REPO_URL} ${WORKDIR}
+source ${VENV_PATH}/bin/activate
+cd ${WORKDIR}/playbooks
+ansible-playbook get-vm-ip.yaml -e "@../config/config-dev.yaml"
+cat vm_ip.txt || echo '⚠️ ไม่พบไฟล์ vm_ip.txt'
+EOF
+"""
+        }
+      }
+    }
+
+    stage('🐳 ติดตั้ง Docker และ Docker Compose') {
+      when {
+        expression { return env.DESTROY_MODE.toLowerCase() == "false" }
+      }
+      steps {
+        withCredentials([
+          sshUserPrivateKey(credentialsId: 'ssh-ansible-agent', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')
+        ]) {
+          sh """
+VM_IP=\$(ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} 'cat ${WORKDIR}/playbooks/vm_ip.txt' || echo "")
+if [ -z "\$VM_IP" ]; then
+  echo '❌ ไม่สามารถอ่าน VM IP ได้'; exit 1
+fi
+
+ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<EOF
+set -e
+source ${VENV_PATH}/bin/activate
+cd ${WORKDIR}/playbooks
+ansible-playbook install-docker.yaml -i "\$VM_IP," \\
+  -e 'ansible_user=azureuser' \\
+  -e 'ansible_ssh_private_key_file=~/.ssh/id_rsa_ansible_final'
+EOF
+"""
+        }
+      }
+    }
+  }
+}
