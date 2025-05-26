@@ -1,44 +1,110 @@
-- name: เปิดพอร์ตบน Azure NSG ด้วย Azure CLI
+- name: เปิดพอร์ต 5239, 5432, 80, 5220 บน Azure NSG ด้วย Azure CLI
   hosts: localhost
   connection: local
   gather_facts: no
 
-  vars:
-    open_ports: [5239, 5432, 80, 5220]
-
   tasks:
-    - name: ลบพอร์ตซ้ำออก
-      set_fact:
-        unique_ports: "{{ open_ports | unique }}"
 
-    - name: เปิดพอร์ตแต่ละรายการบน NSG
-      with_items: "{{ unique_ports }}"
-      vars:
-        port: "{{ item }}"
-        rule_name: "Allow-{{ port }}"
-        rule_priority: "{{ 2000 + index }}"
-      block:
-        - name: ตรวจว่า rule {{ rule_name }} มีอยู่หรือไม่
-          shell: |
-            az network nsg rule list \
-              --resource-group {{ resource_group }} \
-              --nsg-name {{ nsg_name }} \
-              --query "[?name=='{{ rule_name }}']" \
-              --output tsv
-          register: rule_exists
-          changed_when: false
+    # === 5239 ===
+    - name: ตรวจว่า rule Allow-5239 มีอยู่หรือไม่
+      shell: |
+        az network nsg rule list \
+          --resource-group {{ resource_group }} \
+          --nsg-name {{ nsg_name }} \
+          --query "[?name=='Allow-5239']" \
+          --output tsv
+      register: rule_5239
+      changed_when: false
 
-        - name: สร้าง rule {{ rule_name }} ถ้ายังไม่มี
-          shell: |
-            az network nsg rule create \
-              --resource-group {{ resource_group }} \
-              --nsg-name {{ nsg_name }} \
-              --name {{ rule_name }} \
-              --priority {{ rule_priority }} \
-              --access Allow \
-              --direction Inbound \
-              --protocol Tcp \
-              --destination-port-range {{ port }} \
-              --source-address-prefix '*' \
-              --destination-address-prefix '*'
-          when: rule_exists.stdout == ""
+    - name: สร้าง rule Allow-5239 ถ้ายังไม่มี
+      shell: |
+        az network nsg rule create \
+          --resource-group {{ resource_group }} \
+          --nsg-name {{ nsg_name }} \
+          --name Allow-5239 \
+          --priority 2001 \
+          --access Allow \
+          --direction Inbound \
+          --protocol Tcp \
+          --destination-port-range 5239 \
+          --source-address-prefix '*' \
+          --destination-address-prefix '*'
+      when: rule_5239.stdout == ""
+
+    # === 5432 ===
+    - name: ตรวจว่า rule Allow-5432 มีอยู่หรือไม่
+      shell: |
+        az network nsg rule list \
+          --resource-group {{ resource_group }} \
+          --nsg-name {{ nsg_name }} \
+          --query "[?name=='Allow-5432']" \
+          --output tsv
+      register: rule_5432
+      changed_when: false
+
+    - name: สร้าง rule Allow-5432 ถ้ายังไม่มี
+      shell: |
+        az network nsg rule create \
+          --resource-group {{ resource_group }} \
+          --nsg-name {{ nsg_name }} \
+          --name Allow-5432 \
+          --priority 2002 \
+          --access Allow \
+          --direction Inbound \
+          --protocol Tcp \
+          --destination-port-range 5432 \
+          --source-address-prefix '*' \
+          --destination-address-prefix '*'
+      when: rule_5432.stdout == ""
+
+    # === 80 ===
+    - name: ตรวจว่า rule Allow-80 มีอยู่หรือไม่
+      shell: |
+        az network nsg rule list \
+          --resource-group {{ resource_group }} \
+          --nsg-name {{ nsg_name }} \
+          --query "[?name=='Allow-80']" \
+          --output tsv
+      register: rule_80
+      changed_when: false
+
+    - name: สร้าง rule Allow-80 ถ้ายังไม่มี
+      shell: |
+        az network nsg rule create \
+          --resource-group {{ resource_group }} \
+          --nsg-name {{ nsg_name }} \
+          --name Allow-80 \
+          --priority 2003 \
+          --access Allow \
+          --direction Inbound \
+          --protocol Tcp \
+          --destination-port-range 80 \
+          --source-address-prefix '*' \
+          --destination-address-prefix '*'
+      when: rule_80.stdout == ""
+
+    # === 5220 ===
+    - name: ตรวจว่า rule Allow-5220 มีอยู่หรือไม่
+      shell: |
+        az network nsg rule list \
+          --resource-group {{ resource_group }} \
+          --nsg-name {{ nsg_name }} \
+          --query "[?name=='Allow-5220']" \
+          --output tsv
+      register: rule_5220
+      changed_when: false
+
+    - name: สร้าง rule Allow-5220 ถ้ายังไม่มี
+      shell: |
+        az network nsg rule create \
+          --resource-group {{ resource_group }} \
+          --nsg-name {{ nsg_name }} \
+          --name Allow-5220 \
+          --priority 2004 \
+          --access Allow \
+          --direction Inbound \
+          --protocol Tcp \
+          --destination-port-range 5220 \
+          --source-address-prefix '*' \
+          --destination-address-prefix '*'
+      when: rule_5220.stdout == ""
