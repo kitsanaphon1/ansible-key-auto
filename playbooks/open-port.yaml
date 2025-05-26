@@ -12,13 +12,12 @@
         unique_ports: "{{ open_ports | unique }}"
 
     - name: เปิดพอร์ตแต่ละรายการบน NSG
-      loop: "{{ unique_ports }}"
+      with_items: "{{ unique_ports }}"
       vars:
         port: "{{ item }}"
         rule_name: "Allow-{{ port }}"
-        rule_priority: "{{ 2000 + loop.index }}"
+        rule_priority: "{{ 2000 + index }}"
       block:
-
         - name: ตรวจว่า rule {{ rule_name }} มีอยู่หรือไม่
           shell: |
             az network nsg rule list \
