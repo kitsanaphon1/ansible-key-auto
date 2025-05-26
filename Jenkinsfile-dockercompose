@@ -9,8 +9,7 @@ pipeline {
   }
 
   stages {
-
-    stage('📥 Checkout Jenkinsfile') {
+    stage('📥 Checkout Repo') {
       steps {
         checkout scm
       }
@@ -22,22 +21,17 @@ pipeline {
           sshUserPrivateKey(credentialsId: 'ssh-ansible-agent', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')
         ]) {
           sh """
-# อ่าน VM IP ที่จะรัน Docker Compose
+# อ่าน IP จาก vm_ip.txt บน Ansible VM
 VM_IP=\$(ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} 'cat ${WORKDIR}/playbooks/vm_ip.txt' || echo "")
 if [ -z "\$VM_IP" ]; then
   echo '❌ ไม่สามารถอ่าน VM IP ได้'; exit 1
 fi
 
-# Clone repo และ copy docker-compose.yml ไปยัง VM เป้าหมาย
-ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<'EOA'
-set -e
-rm -rf ${WORKDIR}
-git clone ${REPO_URL} ${WORKDIR}
-scp ${WORKDIR}/docker-compose/docker-compose.yml azureuser@\$VM_IP:/home/azureuser/app/docker-compose.yml
-EOA
+# ส่ง docker-compose.yml ไปยัง VM เป้าหมาย
+ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} "scp ${WORKDIR}/docker-compose/docker-compose.yml azureuser@\$VM_IP:/home/azureuser/app/docker-compose.yml"
 
-# รัน playbook บน Ansible VM
-ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<'EOB'
+# รัน playbook deploy-docker-compose
+ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<EOF
 set -e
 source ${VENV_PATH}/bin/activate
 export ANSIBLE_HOST_KEY_CHECKING=False
@@ -45,7 +39,7 @@ cd ${WORKDIR}/playbooks
 ansible-playbook deploy-docker-compose.yaml -i "\$VM_IP," \\
   -e 'ansible_user=azureuser' \\
   -e 'ansible_ssh_private_key_file=/home/boho/ansible-keys/id_rsa_ansible_final'
-EOB
+EOF
 """
         }
       }
