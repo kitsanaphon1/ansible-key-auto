@@ -15,7 +15,7 @@ pipeline {
       }
     }
 
-    stage('🌐 รัน get-vm-ip.yaml เพื่อดึง IP') {
+    stage('🌐 Get VM IP') {
       steps {
         withCredentials([
           sshUserPrivateKey(credentialsId: 'ssh-ansible-agent', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER'),
@@ -50,16 +50,11 @@ EOF
           sshUserPrivateKey(credentialsId: 'ssh-ansible-agent', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')
         ]) {
           sh """
-# SSH เข้า Ansible VM เพื่ออ่าน IP
 VM_IP=\$(ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} 'cat ${WORKDIR}/playbooks/vm_ip.txt' || echo "")
 if [ -z "\$VM_IP" ]; then
   echo '❌ ไม่สามารถอ่าน VM IP ได้'; exit 1
 fi
 
-# ส่ง docker-compose.yml ไปยัง VM เป้าหมาย
-ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} "scp ${WORKDIR}/docker-compose/docker-compose.yml azureuser@\$VM_IP:/home/azureuser/app/docker-compose.yml"
-
-# รัน playbook deploy-docker-compose.yaml
 ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<EOF
 set -e
 source ${VENV_PATH}/bin/activate
