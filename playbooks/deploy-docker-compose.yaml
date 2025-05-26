@@ -1,20 +1,30 @@
 - hosts: all
   become: true
   vars:
-    compose_path: /home/azureuser/app  # <- ปรับ path ตรงนี้ตามที่คุณเก็บ docker-compose.yaml
+    target_path: /home/azureuser/app
+    local_compose_file: ../docker-compose/docker-compose.yml
 
   tasks:
-    - name: 📦 ตรวจสอบว่า docker-compose.yaml มีอยู่
-      stat:
-        path: "{{ compose_path }}/docker-compose.yaml"
-      register: compose_file
 
-    - name: ❌ แจ้งเตือนหากไม่มี docker-compose.yaml
-      fail:
-        msg: "❌ ไม่พบ docker-compose.yaml ที่ {{ compose_path }}"
-      when: not compose_file.stat.exists
+    - name: 📁 สร้างโฟลเดอร์ปลายทางถ้ายังไม่มี
+      file:
+        path: "{{ target_path }}"
+        state: directory
+        owner: azureuser
+        group: azureuser
+        mode: '0755'
+
+    - name: 📦 Copy docker-compose.yml ไปยังเครื่องเป้าหมาย
+      copy:
+        src: "{{ local_compose_file }}"
+        dest: "{{ target_path }}/docker-compose.yml"
+        owner: azureuser
+        group: azureuser
+        mode: '0644'
 
     - name: 🐳 รัน docker compose up -d
-      shell: docker compose -f docker-compose.yaml up -d
+      become: true
+      become_user: azureuser
+      shell: docker compose -f docker-compose.yml up -d
       args:
-        chdir: "{{ compose_path }}"
+        chdir: "{{ target_path }}"
