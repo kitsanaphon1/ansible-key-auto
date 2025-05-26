@@ -1,0 +1,91 @@
+pipeline {
+  agent any
+
+  environment {
+    ANSIBLE_HOST = "4.145.84.26"
+    VENV_PATH    = "/home/boho/ansible-env"
+    WORKDIR      = "/tmp/ansible-key-auto-run"
+    REPO_URL     = "https://github.com/kitsanaphon1/ansible-key-auto.git"
+  }
+
+  stages {
+
+    stage('📥 Checkout Repo') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('🌐 Get VM IP') {
+      steps {
+        withCredentials([
+          sshUserPrivateKey(credentialsId: 'ssh-ansible-agent', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER'),
+          string(credentialsId: 'AZURE_CLIENT_ID',       variable: 'AZURE_CLIENT_ID'),
+          string(credentialsId: 'AZURE_SECRET',          variable: 'AZURE_SECRET'),
+          string(credentialsId: 'AZURE_TENANT',          variable: 'AZURE_TENANT'),
+          string(credentialsId: 'AZURE_SUBSCRIPTION_ID', variable: 'AZURE_SUBSCRIPTION_ID')
+        ]) {
+          sh """
+ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<'EOF'
+set -e
+export AZURE_CLIENT_ID=$AZURE_CLIENT_ID
+export AZURE_SECRET=$AZURE_SECRET
+export AZURE_TENANT=$AZURE_TENANT
+export AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
+export ANSIBLE_HOST_KEY_CHECKING=False
+
+rm -rf ${WORKDIR}
+git clone ${REPO_URL} ${WORKDIR}
+source ${VENV_PATH}/bin/activate
+cd ${WORKDIR}/playbooks
+ansible-playbook get-vm-ip.yaml -e "@../config/config-dev.yaml"
+EOF
+"""
+        }
+      }
+    }
+
+    stage('🔓 Open Firewall Ports') {
+      steps {
+        withCredentials([
+          sshUserPrivateKey(credentialsId: 'ssh-ansible-agent', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')
+        ]) {
+          sh """
+ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<'EOF'
+set -e
+export ANSIBLE_HOST_KEY_CHECKING=False
+source ${VENV_PATH}/bin/activate
+cd ${WORKDIR}/playbooks
+ansible-playbook open-port.yaml -e "@../config/config-port.yaml"
+EOF
+"""
+        }
+      }
+    }
+
+    stage('🚀 Deploy Docker Compose') {
+      steps {
+        withCredentials([
+          sshUserPrivateKey(credentialsId: 'ssh-ansible-agent', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')
+        ]) {
+          sh """
+VM_IP=\$(ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} 'cat ${WORKDIR}/playbooks/vm_ip.txt' || echo "")
+if [ -z "\$VM_IP" ]; then
+  echo '❌ ไม่สามารถอ่าน VM IP ได้'; exit 1
+fi
+
+ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${ANSIBLE_HOST} <<EOF
+set -e
+source ${VENV_PATH}/bin/activate
+export ANSIBLE_HOST_KEY_CHECKING=False
+cd ${WORKDIR}/playbooks
+ansible-playbook deploy-docker-compose.yaml -i "\$VM_IP," \\
+  -e 'ansible_user=azureuser' \\
+  -e 'ansible_ssh_private_key_file=/home/boho/ansible-keys/id_rsa_ansible_final'
+EOF
+"""
+        }
+      }
+    }
+  }
+}

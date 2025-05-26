@@ -1,0 +1,2 @@
+resource_group: jenkins-dev-rg
+nsg_name: jenkins-dev-nic    # 👈 ใส่เพิ่มบรรทัดนี้

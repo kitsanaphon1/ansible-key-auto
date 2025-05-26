@@ -1,0 +1,45 @@
+- name: เปิดพอร์ตบน Azure NSG ด้วย Azure CLI
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  vars:
+    open_ports: [5239, 5432, 80, 5220]
+
+  tasks:
+    - name: ลบพอร์ตซ้ำออก
+      set_fact:
+        unique_ports: "{{ open_ports | unique }}"
+
+    - name: เปิดพอร์ตแต่ละรายการบน NSG
+      loop: "{{ unique_ports }}"
+      vars:
+        port: "{{ item }}"
+        rule_name: "Allow-{{ port }}"
+        rule_priority: "{{ 2000 + loop.index }}"
+      block:
+
+        - name: ตรวจว่า rule {{ rule_name }} มีอยู่หรือไม่
+          shell: |
+            az network nsg rule list \
+              --resource-group {{ resource_group }} \
+              --nsg-name {{ nsg_name }} \
+              --query "[?name=='{{ rule_name }}']" \
+              --output tsv
+          register: rule_exists
+          changed_when: false
+
+        - name: สร้าง rule {{ rule_name }} ถ้ายังไม่มี
+          shell: |
+            az network nsg rule create \
+              --resource-group {{ resource_group }} \
+              --nsg-name {{ nsg_name }} \
+              --name {{ rule_name }} \
+              --priority {{ rule_priority }} \
+              --access Allow \
+              --direction Inbound \
+              --protocol Tcp \
+              --destination-port-range {{ port }} \
+              --source-address-prefix '*' \
+              --destination-address-prefix '*'
+          when: rule_exists.stdout == ""
