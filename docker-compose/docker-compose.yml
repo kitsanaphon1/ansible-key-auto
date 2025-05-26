@@ -1,0 +1,58 @@
+version: '3.8'
+
+networks:
+  mynetwork: 
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mynetwork
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d mydb"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  webapi:
+    image: sooyaa02/webappandapi:v1.7
+    container_name: webapi_container
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy  # ✅ ให้ Web API รอจน PostgreSQL พร้อม
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=mydb;Username=myuser;Password=mypassword"
+      ASPNETCORE_URLS: "http://+:80" 
+    ports:
+      - "5239:80"
+    networks:
+      - mynetwork
+
+  webapp:
+    image: sooyaa02/webapp:v1.5
+    container_name: webapp_container
+    restart: always
+    depends_on:
+      - webapi
+    environment:
+      API_URL: "http://webapi:80"
+      ASPNETCORE_URLS: "http://+:80"  
+    ports:
+      - "5220:80"
+    networks:
+      - mynetwork
+
+volumes:
+  postgres_data:
